@@ -1,0 +1,2 @@
+def void():
+    print("void")
