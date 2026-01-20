@@ -27,5 +27,4 @@
 
 ## Авторы & Разработчики
 
-
-@StanislavBTC # star_void
+@StanislavBTC
