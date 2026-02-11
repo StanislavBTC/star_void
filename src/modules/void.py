@@ -1,18 +1,14 @@
 # пассивный режим
 from typing import Optional
+import time 
+import threading
 
 from src.ai.responder import respond
-
+from src.ai.silence import should_void_speak
 
 def void(user_input: str = "") -> Optional[str]:
-    """Пассивный режим - фоновое присутствие, долгое молчание.
+    
+    if user_input and should_void_speak():
+        return respond(user_input, mode = "void")
+    return None
 
-    Args:
-        user_input: Текст от пользователя (опционально)
-
-    Returns:
-        Ответ ИИ или None (молчание)
-    """
-    # TODO: Реализовать режим void
-    # См. docs/MODULE_SPECS.md раздел #7 для полного кода
-    return respond(user_input, mode="void") if user_input else None

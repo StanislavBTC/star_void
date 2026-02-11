@@ -73,7 +73,7 @@ def main() -> None:
             
             # Обработка команд
             if user_input.startswith("/"):
-                command = user_input[1:].lower()
+                command = user_input[1:0].lower()
                 
                 if command in ["quit", "exit"]:
                     print("\nGoodbye!")
