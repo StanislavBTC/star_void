@@ -6,6 +6,8 @@ import json
 import subprocess
 import atexit
 import signal
+import threading
+import sys
 from dotenv import load_dotenv
 
 from src.ai.responder import respond
@@ -128,6 +130,35 @@ def print_help():
             /quit     - выход из программы
         """)
 
+class ThinkingAnimation:
+    def __init__(self):
+        self._stop_event = threading.Event()
+        self._thread = None
+
+    def _animate(self):
+        chars = [".  ", ".. ", "...", "  .", "   "]
+        i = 0
+        while not self._stop_event.is_set():
+            sys.stdout.write(f"\r{chars[i % len(chars)]}")
+            sys.stdout.flush()
+            time.sleep(0.4)
+            i += 1
+        sys.stdout.write("\r   \r")
+        sys.stdout.flush()
+
+    def start(self):
+        if os.getenv("USE_THINKING_ANIMATION", "true").lower() == "true":
+            self._stop_event.clear()
+            self._thread = threading.Thread(target=self._animate)
+            self._thread.daemon = True
+            self._thread.start()
+
+    def stop(self):
+        if self._thread:
+            self._stop_event.set()
+            self._thread.join()
+            self._thread = None
+
 def main() -> None:
     print("Проверка и запуск Ollama...")
     ollama_ready = ensure_ollama()
@@ -150,7 +181,7 @@ def main() -> None:
                     .    * .      .  * .
 
             Star Void отличный слушатель, но плохой советчик.
-            Режимы работы: /ask, /void, /distort, /silence
+            /help для получения помощи в выборе режима
                     """)
 
     mode = 'ask'
@@ -160,6 +191,8 @@ def main() -> None:
         "void": void,
         "silence": silence
     }
+    
+    animation = ThinkingAnimation()
 
     while True:
         try:
@@ -196,14 +229,12 @@ def main() -> None:
             mode_func = modes.get(mode)
             
             if mode_func:
-                if os.getenv("USE_THINKING_ANIMATION", "true").lower() == "true":
-                    print(".", end="", flush=True)
+                animation.start()
                 
-                response = mode_func(user_input)
-                
-                # Очистка индикатора (простая)
-                if os.getenv("USE_THINKING_ANIMATION", "true").lower() == "true":
-                    print("\r", end="", flush=True)
+                try:
+                    response = mode_func(user_input)
+                finally:
+                    animation.stop()
 
                 if response:
                     typing_effect(response)

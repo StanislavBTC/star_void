@@ -48,8 +48,12 @@ def should_void_speak() -> bool:
 import re
 
 def filter_thinking(text: str) -> str:
-    """Удаляет блок размышлений <think>...</think> из ответа."""
-    return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+    """Удаляет блок размышлений <think>...</think> из ответа, включая незавершенные блоки."""
+    # Удаляем завершенные блоки
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Удаляем незавершенный блок в конце, если он есть
+    text = re.sub(r'<think>.*', '', text, flags=re.DOTALL)
+    return text.strip()
 
 
 def filter_advice(text: str) -> str:

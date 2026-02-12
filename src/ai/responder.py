@@ -70,29 +70,39 @@ def _call_ollama_api(user_input: str, mode: str = "ask") -> Optional[str]:
     }
 
     timeout = int(os.getenv('OLLAMA_TIMEOUT', '60'))
+    retries = int(os.getenv('OLLAMA_RETRY_ATTEMPTS', '3'))
+    retry_delay = int(os.getenv('OLLAMA_RETRY_DELAY', '2'))
     
-    try:
-        response = requests.post(chat_url, json=payload_chat, timeout=timeout)
-        if response.status_code == 200:
-            content = response.json().get('message', {}).get('content', '')
-            return _process_content(content)
-        elif response.status_code == 404:
-            # Если Chat API не найден, пробуем Generate API
-            full_prompt = f"{system_content}\n\nUser: {user_input}\nAssistant:"
-            payload_gen = {
-                'model': model,
-                'prompt': full_prompt,
-                'options': options,
-                'stream': False
-            }
-            response = requests.post(gen_url, json=payload_gen, timeout=timeout)
+    for attempt in range(retries + 1):
+        try:
+            response = requests.post(chat_url, json=payload_chat, timeout=timeout)
             if response.status_code == 200:
-                content = response.json().get('response', '')
+                content = response.json().get('message', {}).get('content', '')
                 return _process_content(content)
+            elif response.status_code == 404:
+                # Если Chat API не найден, пробуем Generate API
+                full_prompt = f"{system_content}\n\nUser: {user_input}\nAssistant:"
+                payload_gen = {
+                    'model': model,
+                    'prompt': full_prompt,
+                    'options': options,
+                    'stream': False
+                }
+                response = requests.post(gen_url, json=payload_gen, timeout=timeout)
+                if response.status_code == 200:
+                    content = response.json().get('response', '')
+                    return _process_content(content)
             
-        print(f"Ollama error: {response.status_code}")
-    except Exception as e:
-        print(f"Ollama connection error: {e}")
+            print(f"Ollama error: {response.status_code}")
+            break # Не ретраим при ошибках типа 404 или 500, если это не таймаут
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            if attempt < retries:
+                time.sleep(retry_delay)
+                continue
+            print(f"Ollama connection error after {retries} retries: {e}")
+        except Exception as e:
+            print(f"Ollama unexpected error: {e}")
+            break
     
     return None
 

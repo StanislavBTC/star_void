@@ -1,12 +1,69 @@
-txt.md
+# Git
+.git/
+
+# Environment & Virtual Environments
 .env
 .venv/
+venv/
+ENV/
+env/
+
+# Python
 __pycache__/
-.DS_Store
-*.pyc
-*.log
-.vscode/
-.idea/
+*.py[cod]
+*$py.class
+*.so
+*.egg
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# C++ Build Artifacts
+*.o
+*.obj
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+
+# Logs & Output
+logs/
+*.log
+server.log
+output/
+*.tmp
+
+# IDE & Editor
+.vscode
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Documentation Build
+docs/_build/
+docs/.doctrees/
+
+# Temporary Files
+*.bak
+*.cache
+.temp/
+tmp/
+
+.zed/settings.json
