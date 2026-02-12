@@ -239,7 +239,6 @@ def main() -> None:
                 if response:
                     typing_effect(response)
                 else:
-                    # Если ответа нет (например, из-за фильтров), можно вывести многоточие
                     if mode != "silence":
                         typing_effect("...")
 
