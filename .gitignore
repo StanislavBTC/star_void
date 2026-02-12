@@ -67,3 +67,5 @@ docs/.doctrees/
 tmp/
 
 .zed/settings.json
+
+docs/

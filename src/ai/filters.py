@@ -2,7 +2,9 @@
 
 import random
 import os
+from statistics import mode
 from dotenv import load_dotenv
+
 
 load_dotenv("config/config.env")
 BASE_SILENCE_PROBABILITY = float(os.getenv("SILENCE_PROBABILITY", '0.2'))
@@ -58,34 +60,44 @@ def filter_thinking(text: str) -> str:
 
 def filter_advice(text: str) -> str:
     """Фильтр для удаления советов."""
-    if not os.getenv("ENABLE_ADVICE_FILTER", "true").lower() == "true":
-        return text
+    advice_filter_enabled = os.getenv("ENABLE_ADVICE_FILTER", "true").lower() == "true"
     
+    # If advice filter is disabled, return text unchanged
+    if not advice_filter_enabled:
+        return text
+
     # Удалить явные советы
     advice_indicators = ["лучше", "следует", "рекомендую", "нужно", "стоит"]
     lines = text.split('\n')
     filtered_lines = []
-    
+
     for line in lines:
         if not any(indicator in line.lower() for indicator in advice_indicators):
             filtered_lines.append(line)
-    
+
     return '\n'.join(filtered_lines)
 
 
-def filter_empathy(text: str) -> str:
-    """Фильтр для удаления эмпатичных фраз."""
-    if not os.getenv("ENABLE_EMPATHY_FILTER", "true").lower() == "true":
+def filter_empathy(text: str, mode: str = "ask") -> str:
+    # If mode is psycholog, skip empathy filtering
+    if mode == "psycholog":
         return text
     
+    # Check if empathy filter is enabled
+    empathy_filter_enabled = os.getenv("ENABLE_EMPATHY_FILTER", "true").lower() == "true"
+    
+    # If empathy filter is disabled, return text unchanged
+    if not empathy_filter_enabled:
+        return text
+
     empathy_phrases = [
-        "понимаю", "сочувствую", "чувствую", "мне жаль", 
+        "понимаю", "сочувствую", "чувствую", "мне жаль",
         "я с вами", "вы не один", "всё будет хорошо"
     ]
-    
+
     for phrase in empathy_phrases:
         text = text.replace(phrase, "...")
-        
+
     return text
 
 

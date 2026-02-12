@@ -1,17 +1,15 @@
 # единая точка общения с ИИ
 import os
+import sys
 import json
 import time
 import requests
 from typing import Optional
 from dotenv import load_dotenv
 from src.ai.filters import filter_advice, filter_empathy, filter_length, filter_thinking
-import os
-from openai import OpenAI
+
 
 # Загружаем конфигурацию
-import sys
-import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 load_dotenv("config/config.env")
 
@@ -69,16 +67,16 @@ def _call_ollama_api(user_input: str, mode: str = "ask") -> Optional[str]:
         'stream': False
     }
 
-    timeout = int(os.getenv('OLLAMA_TIMEOUT', '60'))
+    timeout = int(os.getenv('OLLAMA_TIMEOUT', '30'))
     retries = int(os.getenv('OLLAMA_RETRY_ATTEMPTS', '3'))
     retry_delay = int(os.getenv('OLLAMA_RETRY_DELAY', '2'))
-    
+
     for attempt in range(retries + 1):
         try:
             response = requests.post(chat_url, json=payload_chat, timeout=timeout)
             if response.status_code == 200:
                 content = response.json().get('message', {}).get('content', '')
-                return _process_content(content)
+                return _process_content(content, mode)
             elif response.status_code == 404:
                 # Если Chat API не найден, пробуем Generate API
                 full_prompt = f"{system_content}\n\nUser: {user_input}\nAssistant:"
@@ -91,8 +89,8 @@ def _call_ollama_api(user_input: str, mode: str = "ask") -> Optional[str]:
                 response = requests.post(gen_url, json=payload_gen, timeout=timeout)
                 if response.status_code == 200:
                     content = response.json().get('response', '')
-                    return _process_content(content)
-            
+                    return _process_content(content, mode)
+
             print(f"Ollama error: {response.status_code}")
             break # Не ретраим при ошибках типа 404 или 500, если это не таймаут
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
@@ -103,14 +101,14 @@ def _call_ollama_api(user_input: str, mode: str = "ask") -> Optional[str]:
         except Exception as e:
             print(f"Ollama unexpected error: {e}")
             break
-    
+
     return None
 
-def _process_content(content: str) -> str:
+def _process_content(content: str, mode: str = "ask") -> str:
     if content:
         content = filter_thinking(content)
         content = filter_advice(content)
-        content = filter_empathy(content)
+        content = filter_empathy(content, mode)
         content = filter_length(content)
     return content
 

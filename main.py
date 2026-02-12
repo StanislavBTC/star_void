@@ -11,7 +11,7 @@ import sys
 from dotenv import load_dotenv
 
 from src.ai.responder import respond
-from src.modules import ask, distort, silence, void
+from src.modules import ask, distort, silence, void, psycholog
 from src.utils.delay import random_delay, typing_effect
 
 # Загружаем переменные окружения
@@ -21,7 +21,6 @@ load_dotenv("config/config.env")
 ollama_process = None
 
 def stop_ollama_local():
-    """Останавливает локальный процесс Ollama при выходе из программы."""
     global ollama_process
     if ollama_process:
         print("\n[system] Завершение работы Ollama...")
@@ -32,7 +31,6 @@ def stop_ollama_local():
             ollama_process.kill()
         print("[system] Ollama остановлена.")
     
-    # Дополнительная очистка на случай, если процесс "отвязался"
     try:
         if os.name == 'posix':
             subprocess.run(["pkill", "-f", "ollama serve"], stderr=subprocess.DEVNULL)
@@ -43,9 +41,7 @@ def stop_ollama_local():
 atexit.register(stop_ollama_local)
 
 def ensure_ollama() -> bool:
-    """
-    Гарантирует запуск Ollama: убивает старые процессы и запускает новый.
-    """
+
     model_name = os.getenv('MODEL_NAME', 'deepseek-r1:14b')
     
     # 1. Сначала попробуем проверить, не запущена ли она уже и работает ли
@@ -62,7 +58,7 @@ def ensure_ollama() -> bool:
     print("[system] Подготовка к запуску Ollama...")
     try:
         if os.name == 'posix':
-            subprocess.run(["pkill", "-f", "ollama serve"], stderr=subprocess.DEVNULL)
+            subprocess.run(["pkill", "-f", "ollama serve"], stderr = subprocess.DEVNULL)
             time.sleep(1)
     except Exception:
         pass
@@ -72,14 +68,14 @@ def ensure_ollama() -> bool:
     try:
         ollama_process = subprocess.Popen(
             ["ollama", "serve"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout = subprocess.DEVNULL,
+            stderr = subprocess.DEVNULL,
             start_new_session=True
         )
         
         # Ждем инициализации API с постепенным увеличением времени
         for i in range(15):
-            time.sleep(2)
+            time.sleep(1)
             try:
                 response = requests.get("http://localhost:11434/api/tags", timeout=2)
                 if response.status_code == 200:
@@ -99,7 +95,7 @@ def ensure_ollama() -> bool:
     return False
 
 def _check_and_pull_model(model_name: str) -> None:
-    """Проверяет наличие модели и выводит список доступных, если нужная не найдена."""
+
     try:
         response = requests.get("http://localhost:11434/api/tags", timeout=5)
         if response.status_code == 200:
@@ -126,6 +122,7 @@ def print_help():
             /distort  - искажение (фрагментация, растворение смысла)
             /void     - пустота (пассивное присутствие, молчание)
             /silence  - молчание (полный отказ от ответов)
+            /psycholog - 
 
             /quit     - выход из программы
         """)
@@ -141,7 +138,7 @@ class ThinkingAnimation:
         while not self._stop_event.is_set():
             sys.stdout.write(f"\r{chars[i % len(chars)]}")
             sys.stdout.flush()
-            time.sleep(0.4)
+            time.sleep(0.2)
             i += 1
         sys.stdout.write("\r   \r")
         sys.stdout.flush()
@@ -164,7 +161,7 @@ def main() -> None:
     ollama_ready = ensure_ollama()
     
     if not ollama_ready:
-        print("ВНИМАНИЕ: Ollama недоступна. ИИ-функции не будут работать.")
+        print("Ollama недоступна. ИИ-функции не будут работать.")
 
     print("""
                  .   * .      .   .        .
@@ -189,7 +186,8 @@ def main() -> None:
         "ask": ask,
         "distort": distort,
         "void": void,
-        "silence": silence
+        "silence": silence,
+        "psycholog":  psycholog
     }
     
     animation = ThinkingAnimation()
