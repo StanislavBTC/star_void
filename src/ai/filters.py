@@ -4,7 +4,7 @@ import random
 import os
 from dotenv import load_dotenv
 
-load_dotenv("src/config/config.env")
+load_dotenv("config/config.env")
 BASE_SILENCE_PROBABILITY = float(os.getenv("SILENCE_PROBABILITY", '0.2'))
 
 SILENCE_PATTERNS = [
@@ -43,6 +43,13 @@ def should_void_speak() -> bool:
 
     void_speak_prob = float(os.getenv("VOID_SPEAK_PROBABILITY", 0.02))
     return random.random() < void_speak_prob
+
+
+import re
+
+def filter_thinking(text: str) -> str:
+    """Удаляет блок размышлений <think>...</think> из ответа."""
+    return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
 
 def filter_advice(text: str) -> str:

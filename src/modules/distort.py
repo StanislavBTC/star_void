@@ -1,6 +1,5 @@
 # режим искажения
 import random
-from pydoc import text
 from typing import Optional
 from src.ai.responder import respond
 from src.utils.text import (

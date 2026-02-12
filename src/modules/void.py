@@ -4,7 +4,7 @@ import time
 import threading
 
 from src.ai.responder import respond
-from src.ai.silence import should_void_speak
+from src.ai.filters import should_void_speak
 
 def void(user_input: str = "") -> Optional[str]:
     

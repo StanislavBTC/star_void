@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from src.ai.filters import BASE_SILENCE_PROBABILITY
 
-load_dotenv("src/config/config.env")
+load_dotenv("config/config.env")
 
 BASE_SILENCE_PROBABILITY = float(os.getenv("SILENCE_PROBABILITY", "0.25"))
 

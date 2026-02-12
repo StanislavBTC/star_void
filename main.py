@@ -1,38 +1,156 @@
-# mailn.py
+import docker
+import time
+import os
+import requests
+import json
+import subprocess
+import atexit
+import signal
+from dotenv import load_dotenv
+
 from src.ai.responder import respond
-
-from src.modules import ask
-from src.modules import distort
-from src.modules import silence
-from src.modules import void
-
+from src.modules import ask, distort, silence, void
 from src.utils.delay import random_delay, typing_effect
 
+# Загружаем переменные окружения
+load_dotenv("config/config.env")
+
+# Глобальная переменная для управления процессом Ollama
+ollama_process = None
+
+def stop_ollama_local():
+    """Останавливает локальный процесс Ollama при выходе из программы."""
+    global ollama_process
+    if ollama_process:
+        print("\n[system] Завершение работы Ollama...")
+        ollama_process.terminate()
+        try:
+            ollama_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            ollama_process.kill()
+        print("[system] Ollama остановлена.")
+    
+    # Дополнительная очистка на случай, если процесс "отвязался"
+    try:
+        if os.name == 'posix':
+            subprocess.run(["pkill", "-f", "ollama serve"], stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+# Регистрируем функцию очистки
+atexit.register(stop_ollama_local)
+
+def ensure_ollama() -> bool:
+    """
+    Гарантирует запуск Ollama: убивает старые процессы и запускает новый.
+    """
+    model_name = os.getenv('MODEL_NAME', 'deepseek-r1:14b')
+    
+    # 1. Сначала попробуем проверить, не запущена ли она уже и работает ли
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=1)
+        if response.status_code == 200:
+            print("[system] Ollama уже запущена и отвечает.")
+            _check_and_pull_model(model_name)
+            return True
+    except Exception:
+        pass
+
+    # 2. Если не отвечает, очищаем старые процессы (на случай зависания)
+    print("[system] Подготовка к запуску Ollama...")
+    try:
+        if os.name == 'posix':
+            subprocess.run(["pkill", "-f", "ollama serve"], stderr=subprocess.DEVNULL)
+            time.sleep(1)
+    except Exception:
+        pass
+
+    # 3. Запускаем локально
+    global ollama_process
+    try:
+        ollama_process = subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+        
+        # Ждем инициализации API с постепенным увеличением времени
+        for i in range(15):
+            time.sleep(2)
+            try:
+                response = requests.get("http://localhost:11434/api/tags", timeout=2)
+                if response.status_code == 200:
+                    print("[system] Ollama успешно запущена.")
+                    _check_and_pull_model(model_name)
+                    return True
+            except Exception:
+                print(f"[system] Ожидание API Ollama... ({i+1}/15)")
+                continue
+    except FileNotFoundError:
+        print("[error] Команда 'ollama' не найдена. Установите Ollama с сайта ollama.com")
+        return False
+    except Exception as e:
+        print(f"[error] Ошибка запуска: {e}")
+        return False
+
+    return False
+
+def _check_and_pull_model(model_name: str) -> None:
+    """Проверяет наличие модели и выводит список доступных, если нужная не найдена."""
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            model_names = [model['name'] for model in models]
+            
+            target_model = model_name if ':' in model_name else f"{model_name}:latest"
+
+            if target_model not in model_names and model_name not in model_names:
+                print(f"\nВНИМАНИЕ: Модель {target_model} не найдена в Ollama.")
+                if model_names:
+                    print(f"Доступные модели: {', '.join(model_names)}")
+                else:
+                    print("Список моделей пуст. Пожалуйста, скачайте модель командой: ollama pull " + target_model)
+                print("Программа может работать некорректно.\n")
+            else:
+                print(f"Модель {target_model} готова к работе.")
+    except Exception as e:
+        print(f"\nОшибка при проверке модели Ollama: {e}")
+
+def print_help():
+    print("""
+            /ask      - диалог (краткие ответы, вопросы, дистанция)
+            /distort  - искажение (фрагментация, растворение смысла)
+            /void     - пустота (пассивное присутствие, молчание)
+            /silence  - молчание (полный отказ от ответов)
+
+            /quit     - выход из программы
+        """)
+
 def main() -> None:
+    print("Проверка и запуск Ollama...")
+    ollama_ready = ensure_ollama()
+    
+    if not ollama_ready:
+        print("ВНИМАНИЕ: Ollama недоступна. ИИ-функции не будут работать.")
 
     print("""
                  .   * .      .   .        .
                  * .     * .  * .   *
                  .    * .    __  . _ .     *
             * .    * .__ ___   ____ ___.      .
-                    |   _             | * . 
-              * .  |  S T A R       | * .  * . 
+                    |   _             | * .
+              * .  |  S T A R       | * .  * .
             .    .  |       V O I D  |   .
                 .   * |___ ______  ____|      *
-              *     .     _.   . __   .  * . 
+              *     .     _.   . __   .  * .
                  *   .  * . * .  *    .     * .
                     * .   * .  * .      .
                     .    * .      .  * .
 
-        
-            Это терминальный софт на питоне, созданый для ...
-
-            А собственно говоря я не знаю для чего он создан
-            просто чтобы с кем-то поговорить, выговориться
-
             Star Void отличный слушатель, но плохой советчик.
-            
-            Режимы работы /ask, /void, /distort, /silence
+            Режимы работы: /ask, /void, /distort, /silence
                     """)
 
     mode = 'ask'
@@ -41,62 +159,65 @@ def main() -> None:
         "distort": distort,
         "void": void,
         "silence": silence
-    } 
-    
+    }
+
     while True:
         try:
-            
-            user_input = input(f"[{mode}] >").strip()
-            
+            prompt = f"[{mode}] > "
+            user_input = input(prompt).strip()
+
             if not user_input:
                 print("Вы ничего не ввели")
                 continue
-                
+
+            # Обработка команд
             if user_input.startswith("/"):
-                comand = user_input[1:].lower()
-                
-                if comand in ['exit', 'quit']:
-                    print("\nGoodbye!")
+                command = user_input[1:].lower()
+
+                if command in ['exit', 'quit']:
+                    print("\nДо встречи в пустоте...")
                     break
-                    
-                elif comand in modes:
-                    mode = comand
-                    print(f"Режим -> {mode}")
+
+                elif command in modes:
+                    mode = command
+                    print(f"Режим изменен на -> {mode}")
                     continue
-                    
-                elif comand == "help":
+
+                elif command == "help":
                     print_help()
                     continue
-                   
+
                 else:
-                    print("Команда не расспазнана")
-                    
-                random_delay(0.5, 1.5)
+                    print(f"Команда '{command}' не распознана. Введите /help для списка.")
+                    continue
+
+            # Логика ответа
+            random_delay()
+            mode_func = modes.get(mode)
+            
+            if mode_func:
+                if os.getenv("USE_THINKING_ANIMATION", "true").lower() == "true":
+                    print(".", end="", flush=True)
                 
-                response = modes[mode](user_input)
-                    
+                response = mode_func(user_input)
+                
+                # Очистка индикатора (простая)
+                if os.getenv("USE_THINKING_ANIMATION", "true").lower() == "true":
+                    print("\r", end="", flush=True)
+
                 if response:
                     typing_effect(response)
-                    
+                else:
+                    # Если ответа нет (например, из-за фильтров), можно вывести многоточие
+                    if mode != "silence":
+                        typing_effect("...")
+
         except KeyboardInterrupt:
-            print("\n\nGoodbye!")
+            print("\n\nПрограмма завершена.")
             break
         except Exception as e:
-            print(f"\nОшибка: {e}")
+            print(f"\nПроизошла ошибка: {e}")
             continue
-            
-def print_help():
 
-    print("""
-        
-            /ask      - диалог (краткие ответы, вопросы, дистанция)
-            /distort  - искажение (фрагментация, растворение смысла)
-            /void     - пустота (пассивное присутствие, молчание)
-            /silence  - молчание (полный отказ от ответов)
-
-            /quit     - выход из программы
-        
-        """)
-                     
 if __name__ == "__main__":
     main()

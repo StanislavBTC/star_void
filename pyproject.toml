@@ -1,0 +1,4 @@
+[tool.pyright]
+# Configuration for pyright/basedpyright
+stubPath = "./typings"
+typeCheckingMode = "basic"

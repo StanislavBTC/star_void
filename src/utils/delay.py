@@ -4,17 +4,17 @@ import time
 import random
 from dotenv import load_dotenv
 
-load_dotenv("src/config/config.env")
+load_dotenv("config/config.env")
 
 MIN_DELAY = float(os.getenv("MIN_DELAY_SEC", "0.5"))
 MAX_DELAY = float(os.getenv("MAX_DELAY_SEC", "2.0"))
 TYPING_SPEED = int(os.getenv("TYPING_SPEED_CPS", "30"))    
 
-def random_delay(min_sec: float = 0.5, max_sec: float = 2.0) -> None:
+def random_delay(min_sec: float = MIN_DELAY, max_sec: float = MAX_DELAY) -> None:
  
     time.sleep(random.uniform(min_sec, max_sec))
 
-def typing_effect(text: str, chars_per_second: int = 30) -> None:
+def typing_effect(text: str, chars_per_second: int = TYPING_SPEED) -> None:
     
     for char in text:
         print(char, end = '', flush = True)
