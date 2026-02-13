@@ -13,10 +13,12 @@ from .ask import ask
 from .distort import distort
 from .silence import silence
 from .void import void
+from .psycholog import psycholog
 
 __all__ = [
     "ask",
     "distort",
     "void",
     "silence",
+    "psycholog",
 ]
