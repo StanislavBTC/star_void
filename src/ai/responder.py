@@ -36,7 +36,7 @@ def _call_ollama_api(user_input: str, mode: str = "ask") -> Optional[str]:
     # Получаем модель из конфига
     model = os.getenv('MODEL_NAME', 'deepseek-r1:14b')
     if model == 'default':
-        model = 'deepseek-r1:14b'
+        model = 'deepseek-r1:8b'
 
     base_url = os.getenv('OLLAMA_API_URL', 'http://localhost:11434/api/chat').replace('/api/chat', '').replace('/api/generate', '')
     chat_url = f"{base_url}/api/chat"

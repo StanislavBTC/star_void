@@ -69,3 +69,5 @@ tmp/
 .zed/settings.json
 
 docs/
+
+.DS_Store
