@@ -70,6 +70,5 @@ tmp/
 
 docs/
 
+# Ignore DS_Store files
 .DS_Store
-
-.github
