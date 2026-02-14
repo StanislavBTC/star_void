@@ -8,6 +8,7 @@ import atexit
 import signal
 import threading
 import sys
+import urllib.request
 from dotenv import load_dotenv
 
 from src.ai.responder import respond
@@ -42,7 +43,7 @@ atexit.register(stop_ollama_local)
 
 def ensure_ollama() -> bool:
 
-    model_name = os.getenv('MODEL_NAME', 'deepseek-r1:14b')
+    model_name = os.getenv('MODEL_NAME', 'deepseek-r1:8b')
     
     # 1. Сначала попробуем проверить, не запущена ли она уже и работает ли
     try:
@@ -94,6 +95,38 @@ def ensure_ollama() -> bool:
 
     return False
 
+def install_ollama_auto():
+    """Автоматическая установка Ollama в зависимости от операционной системы"""
+    import platform
+    system = platform.system().lower()
+    
+    try:
+        if system == "windows":
+            # Для Windows используем PowerShell команду
+            install_command = "irm https://ollama.com/install.ps1 | iex"
+            full_command = [
+                "powershell",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", install_command
+            ]
+            print("Установка Ollama для Windows...")
+            subprocess.run(full_command, check=True)
+        elif system in ["darwin", "linux"]:  # Darwin - это macOS
+            # Для macOS и Linux используем curl команду
+            install_cmd = "curl -fsSL https://ollama.com/install.sh | sh"
+            print("Установка Ollama для macOS/Linux...")
+            subprocess.run(install_cmd, shell=True, check=True)
+        else:
+            print(f"Автоматическая установка не поддерживается для {system} системы.")
+            print("Пожалуйста, установите Ollama вручную с сайта: https://ollama.com/")
+    except subprocess.CalledProcessError:
+        print("Не удалось выполнить установку Ollama автоматически.")
+        print("Пожалуйста, установите Ollama вручную с сайта: https://ollama.com/")
+    except Exception as e:
+        print(f"Ошибка при установке Ollama: {e}")
+
+
 def _check_and_pull_model(model_name: str) -> None:
 
     try:
@@ -101,28 +134,60 @@ def _check_and_pull_model(model_name: str) -> None:
         if response.status_code == 200:
             models = response.json().get('models', [])
             model_names = [model['name'] for model in models]
-            
+
             target_model = model_name if ':' in model_name else f"{model_name}:latest"
 
             if target_model not in model_names and model_name not in model_names:
                 print(f"\nВНИМАНИЕ: Модель {target_model} не найдена в Ollama.")
                 if model_names:
                     print(f"Доступные модели: {', '.join(model_names)}")
+                    print("Программа может работать некорректно.\n")
                 else:
-                    print("Список моделей пуст. Пожалуйста, скачайте модель командой: ollama pull " + target_model)
-                print("Программа может работать некорректно.\n")
+                    print("Список моделей пуст.")
+                    # Попробовать установить Ollama автоматически
+                    try:
+                        import shutil
+                        if not shutil.which("ollama"):
+                            print("Ollama не найдена в системе.")
+                            choice = input("Хотите попробовать установить Ollama автоматически? (y/n): ")
+                            if choice.lower() in ['y', 'yes', 'да']:
+                                # Установка Ollama в зависимости от ОС
+                                if os.name == 'nt':  # Windows
+                                    install_command = "irm https://ollama.com/install.ps1 | iex"
+                                    full_command = [
+                                        "powershell",
+                                        "-NoProfile",
+                                        "-ExecutionPolicy", "Bypass",
+                                        "-Command", install_command
+                                    ]
+                                    print("Установка Ollama для Windows...")
+                                    subprocess.run(full_command, check=True)
+                                else:  # Unix-like (macOS, Linux)
+                                    install_cmd = "curl -fsSL https://ollama.com/install.sh | sh"
+                                    print("Установка Ollama для macOS/Linux...")
+                                    subprocess.run(install_cmd, shell=True, check=True)
+                        else:
+                            print("Пожалуйста, скачайте модель командой: ollama pull " + target_model)
+                    except subprocess.CalledProcessError:
+                        print("Не удалось выполнить установку Ollama автоматически.")
+                        print("Пожалуйста, установите Ollama вручную с сайта: https://ollama.com/")
+                    except Exception as e:
+                        print(f"Ошибка при установке Ollama: {e}")
+                        
+                    print("Программа может работать некорректно.\n")
             else:
-                print(f"Модель {target_model} готова к работе.")
+                print(f"[system] Модель {target_model} готова к работе.")
     except Exception as e:
         print(f"\nОшибка при проверке модели Ollama: {e}")
 
 def print_help():
     print("""
-            /ask      - диалог (краткие ответы, вопросы, дистанция)
-            /distort  - искажение (фрагментация, растворение смысла)
-            /void     - пустота (пассивное присутствие, молчание)
-            /silence  - молчание (полный отказ от ответов)
-            /psycholog - 
+            /ask       - диалог (краткие ответы, вопросы, дистанция)
+            /distort   - искажение (фрагментация, растворение смысла)
+            /void      - пустота (пассивное присутствие, молчание)
+            /silence   - молчание (полный отказ от ответов)
+            
+            /psycholog - слушатель, может вести диалог
 
             /quit     - выход из программы
         """)
@@ -138,7 +203,7 @@ class ThinkingAnimation:
         while not self._stop_event.is_set():
             sys.stdout.write(f"\r{chars[i % len(chars)]}")
             sys.stdout.flush()
-            time.sleep(0.2)
+            time.sleep(0.1)
             i += 1
         sys.stdout.write("\r   \r")
         sys.stdout.flush()
@@ -160,6 +225,8 @@ def main() -> None:
     print("Проверка и запуск Ollama...")
     ollama_ready = ensure_ollama()
     
+    username = input("Введи свое имя, пожалуйста: ")
+    
     if not ollama_ready:
         print("Ollama недоступна. ИИ-функции не будут работать.")
 
@@ -177,11 +244,11 @@ def main() -> None:
                     * .   * .  * .      .
                     .    * .      .  * .
 
-            Star Void отличный слушатель, но плохой советчик.
+            Star Void отличный слушатель, но не советчик.
             /help для получения помощи в выборе режима
                     """)
 
-    mode = 'ask'
+    mode = 'psycholog'
     modes = {
         "ask": ask,
         "distort": distort,
@@ -194,13 +261,9 @@ def main() -> None:
 
     while True:
         try:
-            prompt = f"[{mode}] > "
+            prompt = f"[{username}] > "
             user_input = input(prompt).strip()
-
-            if not user_input:
-                print("Вы ничего не ввели")
-                continue
-
+            
             # Обработка команд
             if user_input.startswith("/"):
                 command = user_input[1:].lower()
@@ -211,7 +274,7 @@ def main() -> None:
 
                 elif command in modes:
                     mode = command
-                    print(f"Режим изменен на -> {mode}")
+                    print(f"Режим изменен на {mode}")
                     continue
 
                 elif command == "help":
@@ -219,7 +282,7 @@ def main() -> None:
                     continue
 
                 else:
-                    print(f"Команда '{command}' не распознана. Введите /help для списка.")
+                    print(f"Команда '{command}' не распознана. Введите /help для помощи.")
                     continue
 
             # Логика ответа
@@ -235,9 +298,11 @@ def main() -> None:
                     animation.stop()
 
                 if response:
+                    print(f"[{mode}] > " , end="" )
                     typing_effect(response)
                 else:
                     if mode != "silence":
+                        print(f"[{mode}] > " , end="" )
                         typing_effect("...")
 
         except KeyboardInterrupt:

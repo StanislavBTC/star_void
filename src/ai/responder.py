@@ -34,7 +34,7 @@ def respond(user_input: str, mode: str = "ask") -> Optional[str]:
         
 def _call_ollama_api(user_input: str, mode: str = "ask") -> Optional[str]:
     # Получаем модель из конфига
-    model = os.getenv('MODEL_NAME', 'deepseek-r1:14b')
+    model = os.getenv('MODEL_NAME', 'deepseek-r1:8b')
     if model == 'default':
         model = 'deepseek-r1:8b'
 
